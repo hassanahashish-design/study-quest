@@ -1018,7 +1018,7 @@ function hideGate(){ gEl("gate").classList.add("hide"); if(_loadTimer){clearInte
 function gateError(msg){ if(_loadTimer){clearInterval(_loadTimer);_loadTimer=null;} const e=gEl("gErr"); e.textContent=msg; e.classList.remove("hide"); gFront().classList.remove("hide"); gEl("gLoad").classList.add("hide"); }
 function showLoading(){ gEl("gErr").classList.add("hide"); gFront().classList.add("hide"); gEl("gLoad").classList.remove("hide"); let i=0; gEl("loadMsg").textContent=LOAD_MSGS[0]; _loadTimer=setInterval(()=>{i=(i+1)%LOAD_MSGS.length;gEl("loadMsg").textContent=LOAD_MSGS[i];},1700); }
 
-const MAX_EXTRACT_CHARS=200000; // read up to ~100 pages of text from big PDFs; the backend trims to its own budget
+const MAX_EXTRACT_CHARS=260000; // read a few hundred pages across all dropped files; backend trims to its own budget
 async function extractText(file){
   if(file.type==="application/pdf"||/\.pdf$/i.test(file.name)){
     const buf=await file.arrayBuffer();

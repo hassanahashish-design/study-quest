@@ -5,7 +5,7 @@
 // Requires env var ANTHROPIC_API_KEY (set in the Vercel dashboard — never in code).
 
 const MODEL = process.env.BRAINROT_MODEL || "claude-haiku-4-5-20251001";
-const MAX_CHARS = 80000;   // ~20k tokens of notes (~a full chapter) — cost/abuse cap
+const MAX_CHARS = 240000;  // ~60k tokens (~a few hundred pages) — safely under the model context window; still a cost/abuse cap
 const MIN_CHARS = 200;     // below this the file probably had no readable text (scanned PDF)
 const PALETTE = ["blue", "orange", "green", "purple", "teal", "red"];
 
