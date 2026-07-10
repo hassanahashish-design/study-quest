@@ -355,10 +355,10 @@ body{background:var(--clay-bg)}
     <p class="heroSub">Drop a PDF of your notes and BrainRot builds a Duolingo-style quiz — levels, streaks and flashcards. The only brainrot that makes you smarter.</p>
     <div class="gateCard gFront">
       <label id="drop" class="drop">
-        <input id="file" type="file" accept="application/pdf,.pdf,.txt,text/plain" hidden>
+        <input id="file" type="file" accept="application/pdf,.pdf,.txt,text/plain" multiple hidden>
         <div class="dropIco">📄</div>
-        <div class="dropT">Drop a PDF — or tap to choose</div>
-        <div class="dropH">lecture notes, a chapter, a study guide…</div>
+        <div class="dropT">Drop your notes — or tap to choose</div>
+        <div class="dropH">one file or several — PDFs, a chapter, a study guide…</div>
       </label>
       <div id="gErr" class="gErr hide"></div>
       <button class="gDemo" id="gDemo">or try a demo quest →</button>
@@ -1029,21 +1029,31 @@ async function generateQuest(text){
   if(!r.ok) throw new Error(data.message||"Couldn't build a quest from that file.");
   return data;
 }
-async function startFromFile(file){
+async function startFromFiles(files){
   showLoading();
   try{
-    const text=await extractText(file);
-    if(text.replace(/\s+/g,"").length<200){ gateError("Couldn't read text from that file — if it's a scan or photo, the words aren't selectable. Try a PDF with real text, or a .txt of your notes."); return; }
+    const list=Array.from(files);
+    const parts=[]; let total=0;
+    for(const f of list){
+      let t=""; try{ t=await extractText(f); }catch(e){ t=""; }
+      if(t&&t.trim()){
+        parts.push(list.length>1?("### "+f.name+"\n"+t):t);
+        total+=t.length;
+        if(total>=MAX_EXTRACT_CHARS) break; // combined budget across all dropped files
+      }
+    }
+    const text=parts.join("\n\n").slice(0,MAX_EXTRACT_CHARS);
+    if(text.replace(/\s+/g,"").length<200){ gateError("Couldn't read text from "+(list.length>1?"those files":"that file")+" — if they're scans or photos, the words aren't selectable. Try PDFs with real text, or a .txt of your notes."); return; }
     const quest=await generateQuest(text);
     applyQuest(quest); hideGate(); goPath();
   }catch(e){ gateError(String(e&&e.message||e)); }
 }
 function wireGate(){
   const drop=gEl("drop"), file=gEl("file");
-  file.addEventListener("change",()=>{ if(file.files[0]) startFromFile(file.files[0]); });
+  file.addEventListener("change",()=>{ if(file.files.length) startFromFiles(file.files); });
   ["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("drag");}));
   ["dragleave","dragend"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("drag");}));
-  drop.addEventListener("drop",e=>{ e.preventDefault(); drop.classList.remove("drag"); const f=e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) startFromFile(f); });
+  drop.addEventListener("drop",e=>{ e.preventDefault(); drop.classList.remove("drag"); const f=e.dataTransfer.files; if(f&&f.length) startFromFiles(f); });
   gEl("gDemo").addEventListener("click",()=>{ applyQuest(DEMO_QUEST); hideGate(); goPath(); });
 }
 
