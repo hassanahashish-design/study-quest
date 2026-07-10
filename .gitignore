@@ -1,0 +1,4 @@
+# local API key for the dev server — NEVER commit this
+.dev-key
+.env
+.env.local
