@@ -271,6 +271,77 @@ button{font-family:inherit;cursor:pointer;border:0;background:none}
 .lfoot{background:var(--navy);color:#cfd6e6;text-align:center;padding:24px 20px;font-weight:700;font-size:12px;line-height:1.7}
 .lfoot a{color:#fff;text-decoration:none;margin:0 6px}
 @media(max-width:400px){.feats{grid-template-columns:1fr}}
+
+/* ===================== SOFT-CLAY THEME (keeps the brand colors, drops the flat Duolingo look) ===================== */
+:root{
+  --clay-bg:#e8e7f0; --clay-card:#f6f5fb; --clay-sunk:#e3e1ec;
+  --clay-out:8px 8px 18px rgba(74,62,110,.17), -7px -7px 15px rgba(255,255,255,.95);
+  --clay-soft:5px 5px 12px rgba(74,62,110,.13), -4px -4px 9px rgba(255,255,255,.9);
+  --clay-in:inset 3px 3px 7px rgba(120,108,155,.24), inset -3px -3px 7px rgba(255,255,255,.85);
+  --clay-3d:inset 3px 4px 7px rgba(255,255,255,.45), inset -5px -6px 12px rgba(0,0,0,.22), 5px 8px 15px rgba(60,45,95,.20);
+  --clay-hi:radial-gradient(at 32% 24%, rgba(255,255,255,.45), rgba(255,255,255,0) 60%);
+}
+body{background:var(--clay-bg)}
+.app{background:#f4f3fa;box-shadow:0 0 70px rgba(90,70,150,.14)}
+.topbar{background:#f4f3fa;border-bottom:0;box-shadow:0 5px 14px rgba(90,70,150,.07)}
+#gate{background:var(--clay-bg)}
+#lesson,#done,#flash{background:#f4f3fa}
+
+/* raised matte surfaces */
+.gateCard,.feat,.priceCard,.xcard,.scard,.sheet,.fcF{border:0!important;border-radius:26px;background:var(--clay-card);box-shadow:var(--clay-out)}
+.step{border:0;border-radius:22px;background:#efedf7;box-shadow:var(--clay-soft)}
+.faqItem{border-bottom:0;border-radius:20px;background:var(--clay-card);box-shadow:var(--clay-soft);padding:16px;margin-bottom:10px}
+.resume{border:0;box-shadow:var(--clay-soft)}
+
+/* sunken clay: drop zone, tracks, chips */
+.drop{border:0;border-radius:24px;background:#e6f4d6;box-shadow:var(--clay-in)}
+.drop.drag{background:#d8f0bd;box-shadow:var(--clay-in), 0 0 0 4px rgba(88,204,2,.35)}
+.pbar,.loadbar{background:var(--clay-sunk);box-shadow:var(--clay-in);border-radius:12px}
+.choice .k{border:0;background:var(--clay-sunk);box-shadow:var(--clay-in);color:var(--mut)}
+
+/* colored clay: buttons */
+.btn,.checkbtn,.lcta{border:0!important;border-radius:20px;box-shadow:var(--clay-3d)}
+.btn:active,.checkbtn:active,.lcta:active{transform:translateY(1px);box-shadow:inset 4px 5px 11px rgba(0,0,0,.3), inset -3px -3px 7px rgba(255,255,255,.25)}
+.btn.green,.checkbtn.green,.lcta{background:var(--clay-hi),var(--green);color:#fff}
+.btn.blue,.checkbtn.blue{background:var(--clay-hi),var(--blue)}
+.btn.red,.checkbtn.red{background:var(--clay-hi),var(--red)}
+.btn.gold{background:var(--clay-hi),var(--gold);color:#7a5b00}
+.btn.grey,.checkbtn.grey{background:var(--clay-sunk)!important;color:#a9a3c0!important;box-shadow:var(--clay-in)!important}
+.btn.ghost{background:var(--clay-card);color:var(--mut);box-shadow:var(--clay-soft)}
+
+/* colored clay: skill orbs */
+.bub{box-shadow:var(--clay-3d)!important}
+.bub:active{transform:translateY(2px)}
+.blue .bub{background:var(--clay-hi),var(--blue)}
+.orange .bub{background:var(--clay-hi),var(--orange)}
+.green .bub{background:var(--clay-hi),var(--green)}
+.purple .bub{background:var(--clay-hi),var(--purple)}
+.teal .bub{background:var(--clay-hi),var(--teal)}
+.red .bub{background:var(--clay-hi),var(--red)}
+.bub.done{background:var(--clay-hi),var(--gold)!important}
+.bub.locked{background:var(--clay-hi),#cdcbd6!important}
+
+/* colored clay: unit bands */
+.unitband{border-radius:22px;box-shadow:var(--clay-3d)}
+.unit.blue .unitband{background:var(--clay-hi),var(--blue)}
+.unit.orange .unitband{background:var(--clay-hi),var(--orange)}
+.unit.green .unitband{background:var(--clay-hi),var(--green)}
+.unit.purple .unitband{background:var(--clay-hi),var(--purple)}
+.unit.teal .unitband{background:var(--clay-hi),var(--teal)}
+.unit.red .unitband{background:var(--clay-hi),var(--red)}
+.unitband .g{background:rgba(255,255,255,.28);box-shadow:inset 2px 2px 4px rgba(0,0,0,.15)}
+
+/* answer choices as soft clay tiles */
+.choice{border:0;border-radius:18px;background:var(--clay-card);box-shadow:var(--clay-soft)}
+.choice.sel{background:var(--clay-hi),#dcf2ff;box-shadow:var(--clay-soft),0 0 0 3px rgba(28,176,246,.4)}
+.choice.ok{background:var(--clay-hi),#daffb4;box-shadow:var(--clay-soft),0 0 0 3px rgba(88,204,2,.4)}
+.choice.no{background:var(--clay-hi),#ffdadb;box-shadow:var(--clay-soft),0 0 0 3px rgba(255,75,75,.4)}
+
+/* accents */
+.step .n{box-shadow:var(--clay-3d);background:var(--clay-hi),var(--green)}
+.priceCard.free{box-shadow:var(--clay-out),0 0 0 3px rgba(88,204,2,.35)}
+.fcBack{background:var(--clay-hi),var(--navy)!important}
+.fmark{box-shadow:var(--clay-3d)}
 </style>
 </head>
 <body>
