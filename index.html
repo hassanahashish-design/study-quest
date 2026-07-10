@@ -342,6 +342,16 @@ body{background:var(--clay-bg)}
 .priceCard.free{box-shadow:var(--clay-out),0 0 0 3px rgba(88,204,2,.35)}
 .fcBack{background:var(--clay-hi),var(--navy)!important}
 .fmark{box-shadow:var(--clay-3d)}
+/* staged file chips + build button */
+.pending{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.pending:empty{display:none}
+.chip{display:flex;align-items:center;gap:9px;background:var(--clay-card);box-shadow:var(--clay-soft);border-radius:14px;padding:9px 12px;font-weight:800;font-size:13px;color:var(--ink)}
+.chip .nm{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
+.chip .st{font-size:13px;flex:none}
+.chip .rm{color:var(--mut);font-weight:900;font-size:15px;cursor:pointer;flex:none;padding:0 2px}
+.chip.empty{color:var(--redD)}
+.buildBtn{display:block;width:100%;margin-top:12px;background:var(--clay-hi),var(--green);color:#fff;font-weight:900;text-transform:uppercase;letter-spacing:.5px;padding:14px;border-radius:18px;font-size:15px;box-shadow:var(--clay-3d)}
+.buildBtn:active{transform:translateY(1px)}
 </style>
 </head>
 <body>
@@ -358,8 +368,10 @@ body{background:var(--clay-bg)}
         <input id="file" type="file" accept="application/pdf,.pdf,.txt,text/plain" multiple hidden>
         <div class="dropIco">📄</div>
         <div class="dropT">Drop your notes — or tap to choose</div>
-        <div class="dropH">one file or several — PDFs, a chapter, a study guide…</div>
+        <div class="dropH">add one or several — PDFs or text. Keep adding, then build.</div>
       </label>
+      <div id="pending" class="pending"></div>
+      <button id="buildBtn" class="buildBtn hide" type="button">Build my quest →</button>
       <div id="gErr" class="gErr hide"></div>
       <button class="gDemo" id="gDemo">or try a demo quest →</button>
     </div>
@@ -1029,31 +1041,50 @@ async function generateQuest(text){
   if(!r.ok) throw new Error(data.message||"Couldn't build a quest from that file.");
   return data;
 }
-async function startFromFiles(files){
+let pendingFiles=[]; // [{name, text, status:'reading'|'ok'|'empty'}]
+async function addFiles(files){
+  gEl("gErr").classList.add("hide");
+  for(const f of Array.from(files)){
+    const item={name:f.name,text:"",status:"reading"};
+    pendingFiles.push(item); renderPending();
+    try{ const t=await extractText(f); item.text=(t&&t.trim())?t:""; item.status=(item.text.replace(/\s+/g,"").length>=50)?"ok":"empty"; }
+    catch(e){ item.status="empty"; }
+    renderPending();
+  }
+}
+function renderPending(){
+  const c=gEl("pending"); c.innerHTML="";
+  pendingFiles.forEach((p,i)=>{
+    const st=p.status==="reading"?"⏳":p.status==="ok"?"✅":"⚠️";
+    const d=document.createElement("div"); d.className="chip"+(p.status==="empty"?" empty":"");
+    const s=document.createElement("span"); s.className="st"; s.textContent=st;
+    const nm=document.createElement("span"); nm.className="nm"; nm.textContent=p.name+(p.status==="empty"?" · no readable text":"");
+    const rm=document.createElement("span"); rm.className="rm"; rm.textContent="✕";
+    rm.onclick=e=>{ e.preventDefault(); pendingFiles.splice(i,1); renderPending(); };
+    d.appendChild(s); d.appendChild(nm); d.appendChild(rm); c.appendChild(d);
+  });
+  const okCount=pendingFiles.filter(p=>p.status==="ok").length;
+  const b=gEl("buildBtn");
+  if(pendingFiles.length){ b.classList.remove("hide"); b.textContent="Build my quest"+(okCount>1?(" ("+okCount+" files)"):"")+" →"; }
+  else b.classList.add("hide");
+}
+async function buildFromPending(){
+  const good=pendingFiles.filter(p=>p.status==="ok");
+  if(!good.length){ gateError("None of those files had readable text — if they're scans or photos, the words aren't selectable. Try PDFs with real text, or a .txt of your notes."); return; }
+  const parts=[]; let total=0;
+  for(const p of good){ parts.push(good.length>1?("### "+p.name+"\n"+p.text):p.text); total+=p.text.length; if(total>=MAX_EXTRACT_CHARS) break; }
+  const text=parts.join("\n\n").slice(0,MAX_EXTRACT_CHARS);
   showLoading();
-  try{
-    const list=Array.from(files);
-    const parts=[]; let total=0;
-    for(const f of list){
-      let t=""; try{ t=await extractText(f); }catch(e){ t=""; }
-      if(t&&t.trim()){
-        parts.push(list.length>1?("### "+f.name+"\n"+t):t);
-        total+=t.length;
-        if(total>=MAX_EXTRACT_CHARS) break; // combined budget across all dropped files
-      }
-    }
-    const text=parts.join("\n\n").slice(0,MAX_EXTRACT_CHARS);
-    if(text.replace(/\s+/g,"").length<200){ gateError("Couldn't read text from "+(list.length>1?"those files":"that file")+" — if they're scans or photos, the words aren't selectable. Try PDFs with real text, or a .txt of your notes."); return; }
-    const quest=await generateQuest(text);
-    applyQuest(quest); hideGate(); goPath();
-  }catch(e){ gateError(String(e&&e.message||e)); }
+  try{ const quest=await generateQuest(text); applyQuest(quest); hideGate(); goPath(); }
+  catch(e){ gateError(String(e&&e.message||e)); }
 }
 function wireGate(){
   const drop=gEl("drop"), file=gEl("file");
-  file.addEventListener("change",()=>{ if(file.files.length) startFromFiles(file.files); });
+  file.addEventListener("change",()=>{ if(file.files.length){ addFiles(file.files); file.value=""; } }); // reset so you can add more, one at a time
   ["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("drag");}));
   ["dragleave","dragend"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("drag");}));
-  drop.addEventListener("drop",e=>{ e.preventDefault(); drop.classList.remove("drag"); const f=e.dataTransfer.files; if(f&&f.length) startFromFiles(f); });
+  drop.addEventListener("drop",e=>{ e.preventDefault(); drop.classList.remove("drag"); const f=e.dataTransfer.files; if(f&&f.length) addFiles(f); });
+  gEl("buildBtn").addEventListener("click",buildFromPending);
   gEl("gDemo").addEventListener("click",()=>{ applyQuest(DEMO_QUEST); hideGate(); goPath(); });
 }
 
