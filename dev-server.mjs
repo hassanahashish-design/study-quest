@@ -18,14 +18,24 @@ const TYPES = { ".html":"text/html", ".js":"text/javascript", ".mjs":"text/javas
   ".css":"text/css", ".png":"image/png", ".svg":"image/svg+xml", ".txt":"text/plain",
   ".xml":"application/xml", ".json":"application/json", ".ico":"image/x-icon" };
 
-// load key from .dev-key if not already in the environment
-if (!process.env.ANTHROPIC_API_KEY) {
+// map a raw key to the right provider env var by its prefix
+function envForKey(k) {
+  if (k.startsWith("gsk_")) return "GROQ_API_KEY";       // Groq
+  if (k.startsWith("AIza")) return "GEMINI_API_KEY";     // Google Gemini
+  if (k.startsWith("sk-ant-")) return "ANTHROPIC_API_KEY";
+  if (k.startsWith("sk-")) return "OPENAI_API_KEY";
+  return "GROQ_API_KEY"; // unknown → assume Groq (the free default)
+}
+const PROVIDER_ENVS = ["GROQ_API_KEY", "GEMINI_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"];
+// load key from .dev-key if no provider key is already in the environment
+if (!PROVIDER_ENVS.some(e => process.env[e])) {
   try {
     const k = (await readFile(join(ROOT, ".dev-key"), "utf8")).trim();
-    if (k) process.env.ANTHROPIC_API_KEY = k;
+    if (k) process.env[envForKey(k)] = k;
   } catch {}
 }
-const KEY_OK = !!process.env.ANTHROPIC_API_KEY;
+const ACTIVE_ENV = PROVIDER_ENVS.find(e => process.env[e]);
+const KEY_OK = !!ACTIVE_ENV;
 
 // adapt Node's (req,res) to the Vercel-style handler the generator expects
 function vercelRes(nodeRes) {
@@ -63,5 +73,5 @@ http.createServer(async (req, res) => {
   }
 }).listen(PORT, () => {
   console.log(`BrainRot dev server → http://localhost:${PORT}`);
-  console.log(KEY_OK ? "✅ Anthropic API key loaded — quests will build for real." : "⚠️  No API key found (.dev-key or ANTHROPIC_API_KEY) — file-drop will return a 'not configured' error until you add one.");
+  console.log(KEY_OK ? `✅ AI key loaded (${ACTIVE_ENV}) — quests will build for real.` : "⚠️  No AI key found (.dev-key, or GROQ_API_KEY/GEMINI_API_KEY/etc.) — file-drop returns a 'not configured' error until you add one.");
 });

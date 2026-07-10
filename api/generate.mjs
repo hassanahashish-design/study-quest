@@ -1,11 +1,14 @@
 // BrainRot — quest generator (Vercel serverless function)
-// Takes extracted notes text, asks Claude to write a Duolingo-style quest,
-// validates + structures it into the shape the game consumes: {units, topics, cards}.
+// Turns extracted notes text into a Duolingo-style quest: {units, topics, cards}.
 //
-// Requires env var ANTHROPIC_API_KEY (set in the Vercel dashboard — never in code).
+// Provider-flexible — set ANY ONE of these env vars (free options first):
+//   GROQ_API_KEY      → Groq (free tier, Llama)         — recommended, no credit card
+//   GEMINI_API_KEY    → Google Gemini (free tier)       — no credit card
+//   OPENAI_API_KEY    → OpenAI (paid)
+//   ANTHROPIC_API_KEY → Claude (paid)
+// Optional BRAINROT_MODEL overrides the model for whichever provider is active.
 
-const MODEL = process.env.BRAINROT_MODEL || "claude-haiku-4-5-20251001";
-const MAX_CHARS = 240000;  // ~60k tokens (~a few hundred pages) — safely under the model context window; still a cost/abuse cap
+const MAX_CHARS = 240000;  // ~a few hundred pages — cost/abuse cap, safely under context windows
 const MIN_CHARS = 200;     // below this the file probably had no readable text (scanned PDF)
 const PALETTE = ["blue", "orange", "green", "purple", "teal", "red"];
 
@@ -39,6 +42,90 @@ RULES (obey exactly):
 6. Every question needs a valid "w" follow-up. "n" and "w.e" must be accurate and teach the idea.
 Return the JSON object and nothing else.`;
 
+// ---------------- providers ----------------
+// Each provider: reads its key from env and exposes call(system, user) -> raw text.
+const PROVIDERS = {
+  groq: {
+    env: "GROQ_API_KEY",
+    defaultModel: "llama-3.3-70b-versatile",
+    async call(key, model, system, user) {
+      const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { "authorization": "Bearer " + key, "content-type": "application/json" },
+        body: JSON.stringify({
+          model, temperature: 0.4, max_tokens: 8000,
+          response_format: { type: "json_object" },
+          messages: [{ role: "system", content: system }, { role: "user", content: user }]
+        })
+      });
+      if (!r.ok) throw new Error("groq " + r.status + ": " + (await r.text().catch(() => "")).slice(0, 200));
+      const p = await r.json();
+      return p.choices?.[0]?.message?.content || "";
+    }
+  },
+  gemini: {
+    env: "GEMINI_API_KEY",
+    defaultModel: "gemini-2.0-flash",
+    async call(key, model, system, user) {
+      const url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + encodeURIComponent(key);
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: system }] },
+          contents: [{ role: "user", parts: [{ text: user }] }],
+          generationConfig: { responseMimeType: "application/json", maxOutputTokens: 8192, temperature: 0.4 }
+        })
+      });
+      if (!r.ok) throw new Error("gemini " + r.status + ": " + (await r.text().catch(() => "")).slice(0, 200));
+      const p = await r.json();
+      return (p.candidates?.[0]?.content?.parts || []).map(x => x.text || "").join("");
+    }
+  },
+  openai: {
+    env: "OPENAI_API_KEY",
+    defaultModel: "gpt-4o-mini",
+    async call(key, model, system, user) {
+      const r = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { "authorization": "Bearer " + key, "content-type": "application/json" },
+        body: JSON.stringify({
+          model, temperature: 0.4, max_tokens: 8000,
+          response_format: { type: "json_object" },
+          messages: [{ role: "system", content: system }, { role: "user", content: user }]
+        })
+      });
+      if (!r.ok) throw new Error("openai " + r.status + ": " + (await r.text().catch(() => "")).slice(0, 200));
+      const p = await r.json();
+      return p.choices?.[0]?.message?.content || "";
+    }
+  },
+  anthropic: {
+    env: "ANTHROPIC_API_KEY",
+    defaultModel: "claude-haiku-4-5-20251001",
+    async call(key, model, system, user) {
+      const r = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+        body: JSON.stringify({ model, max_tokens: 8000, system, messages: [{ role: "user", content: user }] })
+      });
+      if (!r.ok) throw new Error("anthropic " + r.status + ": " + (await r.text().catch(() => "")).slice(0, 200));
+      const p = await r.json();
+      return (p.content || []).filter(b => b.type === "text").map(b => b.text).join("");
+    }
+  }
+};
+
+// Free providers first. Returns {name, key, model, call} or null.
+function pickProvider() {
+  for (const name of ["groq", "gemini", "openai", "anthropic"]) {
+    const p = PROVIDERS[name];
+    const key = process.env[p.env];
+    if (key) return { name, key, model: process.env.BRAINROT_MODEL || p.defaultModel, call: p.call };
+  }
+  return null;
+}
+
 function clampInt(v, lo, hi, dflt) {
   const n = Number.isInteger(v) ? v : parseInt(v, 10);
   if (Number.isNaN(n)) return dflt;
@@ -69,8 +156,7 @@ function cleanQuestion(q) {
   return out;
 }
 
-// Turn the LLM's loose object into the game's exact {units, topics, cards},
-// assigning stable keys/ids/colors and dropping anything malformed.
+// Turn the LLM's loose object into the game's exact {units, topics, cards}.
 function structure(raw) {
   const units = [];
   const topics = [];
@@ -117,10 +203,8 @@ function structure(raw) {
 function extractJson(text) {
   if (!text) throw new Error("empty model response");
   let t = text.trim();
-  // strip ```json ... ``` fences if present
   const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fence) t = fence[1].trim();
-  // otherwise slice from first { to last }
   if (t[0] !== "{") {
     const a = t.indexOf("{"), b = t.lastIndexOf("}");
     if (a >= 0 && b > a) t = t.slice(a, b + 1);
@@ -135,13 +219,15 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
 
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) return res.status(500).json({ error: "Server not configured: ANTHROPIC_API_KEY is missing." });
+  const provider = pickProvider();
+  if (!provider) return res.status(500).json({
+    error: "not_configured",
+    message: "No AI key set. Add a free key — GROQ_API_KEY or GEMINI_API_KEY (both free, no card) — or a paid OPENAI_API_KEY / ANTHROPIC_API_KEY."
+  });
 
   let body = req.body;
   try { if (typeof body === "string") body = JSON.parse(body); } catch { body = null; }
   const text = body && typeof body.text === "string" ? body.text : "";
-  // Count real (non-whitespace) chars for the "enough text?" gate; keep original text for the model.
   const contentLen = text.replace(/\s+/g, "").length;
 
   if (contentLen < MIN_CHARS) {
@@ -151,29 +237,11 @@ export default async function handler(req, res) {
     });
   }
   const notes = text.trim().slice(0, MAX_CHARS);
+  const user = "Here are the notes. Build the quest JSON now.\n\n<notes>\n" + notes + "\n</notes>";
 
   let data;
   try {
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": key,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json"
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 8000,
-        system: SYSTEM,
-        messages: [{ role: "user", content: "Here are the notes. Build the quest JSON now.\n\n<notes>\n" + notes + "\n</notes>" }]
-      })
-    });
-    if (!r.ok) {
-      const detail = await r.text().catch(() => "");
-      return res.status(502).json({ error: "model_error", message: "The quest generator had a problem. Try again in a moment.", detail: detail.slice(0, 300) });
-    }
-    const payload = await r.json();
-    const out = (payload.content || []).filter(b => b.type === "text").map(b => b.text).join("");
+    const out = await provider.call(provider.key, provider.model, SYSTEM, user);
     data = extractJson(out);
   } catch (e) {
     return res.status(502).json({ error: "generation_failed", message: "Couldn't build a quest from that. Try again or use a different file.", detail: String(e && e.message || e).slice(0, 200) });

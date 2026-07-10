@@ -12,12 +12,24 @@ Duolingo-style study game. Drop a PDF of notes → Claude turns it into a quest 
   schema + the anti-length-tell rule, validates every question, returns the quest JSON.
 - `vercel.json` — bumps the function timeout to 60s (the LLM call can take a while).
 
+## The AI key (pick ANY one — free options first)
+BrainRot's generator is provider-flexible. Set exactly one of these env vars:
+
+| Env var | Provider | Cost |
+|---|---|---|
+| `GROQ_API_KEY` | Groq (Llama) — console.groq.com | **Free** — no credit card |
+| `GEMINI_API_KEY` | Google Gemini — aistudio.google.com | **Free** — no credit card |
+| `OPENAI_API_KEY` | OpenAI | paid |
+| `ANTHROPIC_API_KEY` | Claude | paid |
+
+Optional `BRAINROT_MODEL` overrides the model for whichever provider is active.
+
 ## Going live (two clicks — your account/keys, so you do these)
 1. **Connect the repo to Vercel.** vercel.com → Add New → Project → import
    `hassanahashish-design/study-quest`. Framework preset: **Other** (it's static + an /api function).
    Deploy. You get a `*.vercel.app` URL that has the working backend.
-2. **Add the API key.** Vercel → the project → Settings → Environment Variables →
-   add `ANTHROPIC_API_KEY` = your Anthropic key. Redeploy (Deployments → ⋯ → Redeploy).
+2. **Add the key.** Vercel → the project → Settings → Environment Variables →
+   add one of the vars above (e.g. `GROQ_API_KEY`). Redeploy (Deployments → ⋯ → Redeploy).
 
 That's it — file-drop generation is now live 24/7, independent of any local machine.
 
@@ -34,6 +46,12 @@ That's it — file-drop generation is now live 24/7, independent of any local ma
 The old GitHub Pages URL (`hassanahashish-design.github.io/study-quest`) has no backend,
 so the **demo works but real file-drop errors there**. Vercel is the real home once step 1+2 are done.
 
-## Local testing without a key
+## Local testing with a real key (no Vercel)
+Put your key (Groq/Gemini/OpenAI/Anthropic) on one line in `study-quest/.dev-key`
+(gitignored). The dev server auto-detects the provider from the key prefix
+(`gsk_`→Groq, `AIza`→Gemini, `sk-ant-`→Claude, `sk-`→OpenAI). Then run the
+`brainrot-dev` launch config and drop a file — quests build for real, for free.
+
+## Local testing without any key
 Append `?mock=1` to the URL — file-drop returns a canned quest so the full
 gate → loading → play flow can be exercised offline.
