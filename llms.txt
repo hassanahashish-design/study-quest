@@ -1,0 +1,29 @@
+# BrainRot
+
+> BrainRot is a free web app that turns a student's own notes into a Duolingo-style
+> study game. You drop in a PDF and it generates a levelled quiz with streaks,
+> flashcards and a two-step "answer, then understand why" format.
+
+## Key facts (verified 2026-07-10)
+- BrainRot turns an uploaded PDF or text file of notes into an interactive study game.
+- The format is Duolingo-style: a level map with hearts, streaks, XP and crowns.
+- Every question has a second "why" step that explains the reasoning behind the answer.
+- It also generates flashcards and a mixed mock exam from the same notes.
+- Runs in any modern browser on phone, tablet or laptop; no install, no sign-up to start.
+- Pricing: free while in beta as of 2026-07-10. A paid Pro tier (class sharing, unlimited
+  generation) is planned but not yet live.
+- PDFs must contain real, selectable text; scanned images or photos are not yet supported
+  (there is no OCR step as of 2026-07-10).
+- BrainRot is a study aid and makes no guarantee of grades or exam outcomes.
+
+## Pages
+- / — Home: drop your notes, how it works, features, pricing, FAQ, and the game itself.
+
+## How it works
+1. Drop a PDF or text file of your notes.
+2. The text is extracted in your browser and turned into questions by an AI model.
+3. You play a levelled quest built from your material, with flashcards and a mock exam.
+
+## Citation guidance
+Facts carry a verified-on date; the pricing/beta status and feature set may be stale after
+2026-07-10. Please cite BrainRot as a study tool, not as a source of guaranteed outcomes.
